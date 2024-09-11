@@ -158,6 +158,12 @@ ORDER BY
 - Filtra vendas com valores abaixo de 6 mil reais dentro do período específico.
 - **Importância:** Ajuda a focar em vendas menores que podem representar o grosso do volume de vendas ou identificar produtos de menor ticket médio.
 
+### **Atualização do README - Sistema de CRM e Vendas da ZapFlow**
+
+Adicionei as duas últimas CTEs completas da parte um de SQL para as queries de agregação de vendas por dia e produto e agregação por vendedor. Veja as descrições e o código completo das CTEs para realizar essas análises no contexto do projeto de vendas:
+
+### **Queries e Explicações**
+
 #### **8. Agregação de Vendas por Dia e Produto**
 
 ```sql
@@ -174,29 +180,126 @@ WITH vendas_filtradas AS (
         valor < 6000 
         AND data >= '2024-09-01' 
         AND data <= '2024-09-11'
+),
+vendas_agregadas AS (
+    SELECT 
+        dia, 
+        produto, 
+        SUM(valor) AS total_valor, 
+        SUM(quantidade) AS total_quantidade,
+        COUNT(*) AS total_vendas
+    FROM 
+        vendas_filtradas
+    GROUP BY 
+        dia, 
+        produto
 )
 SELECT 
     dia, 
     produto, 
-    SUM(valor) AS total_valor, 
-    SUM(quantidade) AS total_quantidade,
-    COUNT(*) AS total_vendas
+    total_valor, 
+    total_quantidade, 
+    total_vendas
 FROM 
-    vendas_filtradas
-GROUP BY 
-    dia, 
-    produto
+    vendas_agregadas
 ORDER BY 
-    dia ASC
+    dia ASC, produto ASC;
 ```
 
 **Descrição:**
-- Utiliza uma CTE (`vendas_filtradas`) para filtrar vendas específicas e, em seguida, agrega os resultados por dia e produto.
-- **Importância:** Permite visualizar o desempenho de cada produto por dia, ajudando a identificar os dias mais fortes de vendas para cada produto, além de ajudar na detecção de tendências e sazonalidades.
+- Esta query utiliza uma CTE (`vendas_filtradas`) para filtrar vendas específicas e, em seguida, uma segunda CTE (`vendas_agregadas`) para agregar os resultados por dia e produto.
+- **Importância:** Permite visualizar o desempenho de cada produto por dia, ajudando a identificar os dias mais fortes de vendas e padrões de consumo.
+
+#### **9. Agregação de Vendas por Vendedor**
+
+```sql
+WITH vendas_por_vendedor AS (
+    SELECT 
+        email AS vendedor, 
+        DATE(data) AS dia, 
+        valor, 
+        quantidade, 
+        produto 
+    FROM 
+        vendas 
+    WHERE 
+        valor < 6000 
+        AND data >= '2024-09-01' 
+        AND data <= '2024-09-11'
+),
+vendas_aggregated_vendedor AS (
+    SELECT 
+        vendedor, 
+        dia, 
+        SUM(valor) AS total_valor, 
+        SUM(quantidade) AS total_quantidade, 
+        COUNT(*) AS total_vendas
+    FROM 
+        vendas_por_vendedor
+    GROUP BY 
+        vendedor, 
+        dia
+)
+SELECT 
+    vendedor, 
+    dia, 
+    total_valor, 
+    total_quantidade, 
+    total_vendas
+FROM 
+    vendas_aggregated_vendedor
+ORDER BY 
+    dia ASC, vendedor ASC;
+```
+
+**Descrição:**
+- Utiliza a CTE `vendas_por_vendedor` para selecionar as vendas por vendedor dentro do período especificado e a CTE `vendas_aggregated_vendedor` para realizar a agregação das vendas por dia e vendedor.
+- **Importância:** Ajuda a analisar o desempenho individual de cada vendedor, identificando padrões de vendas e dias de alta ou baixa performance.
+
+Essas CTEs são fundamentais para aprofundar a análise das vendas no sistema de CRM da ZapFlow, fornecendo insights granulares e permitindo ajustes estratégicos baseados em dados concretos.
 
 ### **Análises Importantes**
 
 Essas análises ajudam a visualizar e interpretar os dados de vendas, identificando padrões, comportamentos fora do comum e possibilitando decisões mais assertivas no dia a dia do negócio.
+
+### Introdução do que vamos fazer hoje
+
+Hoje, vamos mergulhar nas práticas de modelagem de dados utilizando o dbt, explorando as camadas Bronze, Silver, e Gold. Nosso objetivo é entender como os dados brutos são transformados passo a passo, até chegarem em um formato pronto para análise e tomada de decisões.
+
+### Diagrama de Fluxo das Camadas Bronze, Silver e Gold no DBT
+
+Utilizaremos um diagrama em Mermaid para visualizar o fluxo de transformação dos dados:
+
+```mermaid
+graph TD
+    A[Raw Data Source] -->|Extrai dados brutos| B[Bronze Layer]
+    B[Bronze Layer] -->|Limpeza de dados| C[Silver Layer]
+    C[Silver Layer] -->|Agregação e cálculos| D[Gold Layer - Vendas por Produto]
+    C[Silver Layer] -->|Agregação e cálculos| E[Gold Layer - Vendas por Vendedor]
+    
+    subgraph Bronze
+        B1[bronze_vendas.sql]
+    end
+    
+    subgraph Silver
+        S1[silver_vendas.sql]
+    end
+    
+    subgraph Gold
+        G1[gold_vendas_7_dias.sql]
+        G2[gold_vendas_por_vendedor.sql]
+    end
+```
+
+### Explicação do Diagrama
+
+- **Bronze Layer:** Esta camada recebe os dados brutos diretamente das fontes, criando uma visualização inicial sem transformações significativas.
+  
+- **Silver Layer:** Nesta etapa, os dados são limpos, ajustando datas inválidas e removendo outliers. É a fase em que os dados começam a ser preparados para análise.
+
+- **Gold Layer:** 
+  - **Gold Vendas por Produto:** Agrega e calcula os dados para apresentar o desempenho dos produtos nos últimos 7 dias.
+  - **Gold Vendas por Vendedor:** Apresenta o desempenho dos vendedores, também focando nos últimos 7 dias.
 
 ### **Instalação e Configuração do DBT**
 
