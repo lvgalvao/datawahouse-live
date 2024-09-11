@@ -1,3 +1,5 @@
+Aqui está o README atualizado com as modificações solicitadas, incluindo a análise adicional com contagem de valores distintos e removendo o índice do "ORDER BY".
+
 ### **README - Sistema de CRM e Vendas da ZapFlow**
 
 Esse repositório faz parte da aula sobre análise de dados de vendas utilizando SQL, com foco em consultas essenciais para monitoramento de desempenho e identificação de padrões de vendas.
@@ -9,7 +11,9 @@ Esse repositório faz parte da aula sobre análise de dados de vendas utilizando
 3. [Queries e Explicações](#queries-e-explicações)
    - [Consulta Completa de Vendas](#consulta-completa-de-vendas)
    - [Datas Distintas](#datas-distintas)
+   - [Contagem de Vendas por Data](#contagem-de-vendas-por-data)
    - [Preços Distintos](#preços-distintos)
+   - [Contagem de Vendas por Valor](#contagem-de-vendas-por-valor)
    - [Vendas dos Últimos 7 Dias](#vendas-dos-últimos-7-dias)
    - [Vendas com Valor Inferior a 6 Mil no Período de 01/09/2024 a 11/09/2024](#vendas-com-valor-inferior-a-6-mil-no-período-de-01-09-2024-a-11-09-2024)
    - [Agregação de Vendas por Dia e Produto](#agregação-de-vendas-por-dia-e-produto)
@@ -53,24 +57,56 @@ ORDER BY
 
 **Descrição:**
 - Retorna todas as datas únicas em que ocorreram vendas.
-- **Importância:** Ajuda a identificar dias ativos de vendas e pode ser usado para análises sazonais ou frequências de vendas.
+- **Importância:** Ajuda a identificar os dias ativos de vendas, sendo útil para análises sazonais ou de frequência.
 
-#### **3. Preços Distintos**
+#### **3. Contagem de Vendas por Data**
+
+```sql
+SELECT 
+    DISTINCT DATE(data) AS dia,
+    COUNT(data) AS qte 
+FROM 
+    vendas 
+GROUP BY
+    data
+ORDER BY 
+    dia ASC;
+```
+
+**Descrição:**
+- Essa query conta o número de transações realizadas em cada data distinta.
+- **Importância:** Permite analisar o volume de vendas por dia, identificando picos ou períodos de baixa atividade.
+
+#### **4. Preços Distintos**
 
 ```sql
 SELECT 
     DISTINCT valor 
 FROM 
-    vendas 
-ORDER BY 
-    valor DESC;
+    vendas;
 ```
 
 **Descrição:**
-- Retorna todos os valores únicos de vendas.
-- **Importância:** Útil para entender a variação de preços, identificar produtos com múltiplos pontos de preço e detectar possíveis anomalias.
+- Retorna todos os valores únicos de vendas registrados na tabela.
+- **Importância:** Ajuda a entender a variedade de preços, identificando diferentes faixas de valores praticados nos produtos.
 
-#### **4. Vendas dos Últimos 7 Dias**
+#### **5. Contagem de Vendas por Valor**
+
+```sql
+SELECT 
+    valor,
+    COUNT(valor) AS qte
+FROM 
+    vendas 
+GROUP BY 
+    valor;
+```
+
+**Descrição:**
+- Contabiliza a quantidade de vendas para cada valor distinto.
+- **Importância:** Identifica a frequência de vendas para cada faixa de preço, útil para detectar padrões de compra e verificar se há valores fora do esperado.
+
+#### **6. Vendas dos Últimos 7 Dias**
 
 ```sql
 SELECT 
@@ -92,7 +128,7 @@ ORDER BY
 - Agrega as vendas dos últimos 7 dias, mostrando o total vendido e o número de transações por dia.
 - **Importância:** Permite monitorar o desempenho recente das vendas, identificar padrões diários e ajustar estratégias em tempo real.
 
-#### **5. Vendas com Valor Inferior a 6 Mil no Período de 01/09/2024 a 11/09/2024**
+#### **7. Vendas com Valor Inferior a 6 Mil no Período de 01/09/2024 a 11/09/2024**
 
 ```sql
 SELECT 
@@ -116,7 +152,7 @@ ORDER BY
 - Filtra vendas com valores abaixo de 6 mil reais dentro do período específico.
 - **Importância:** Ajuda a focar em vendas menores que podem representar o grosso do volume de vendas ou identificar produtos de menor ticket médio.
 
-#### **6. Agregação de Vendas por Dia e Produto**
+#### **8. Agregação de Vendas por Dia e Produto**
 
 ```sql
 WITH vendas_filtradas AS (
