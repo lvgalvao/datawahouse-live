@@ -1,5 +1,3 @@
-Aqui está o README atualizado com as modificações solicitadas, incluindo a análise adicional com contagem de valores distintos e removendo o índice do "ORDER BY".
-
 ### **README - Sistema de CRM e Vendas da ZapFlow**
 
 Esse repositório faz parte da aula sobre análise de dados de vendas utilizando SQL, com foco em consultas essenciais para monitoramento de desempenho e identificação de padrões de vendas.
@@ -17,7 +15,15 @@ Esse repositório faz parte da aula sobre análise de dados de vendas utilizando
    - [Vendas dos Últimos 7 Dias](#vendas-dos-últimos-7-dias)
    - [Vendas com Valor Inferior a 6 Mil no Período de 01/09/2024 a 11/09/2024](#vendas-com-valor-inferior-a-6-mil-no-período-de-01-09-2024-a-11-09-2024)
    - [Agregação de Vendas por Dia e Produto](#agregação-de-vendas-por-dia-e-produto)
-4. [Conclusão](#conclusão)
+4. [Análises Importantes](#análises-importantes)
+5. [Instalação e Configuração do DBT](#instalação-e-configuração-do-dbt)
+6. [Estrutura do Projeto](#estrutura-do-projeto)
+   - [Configuração do Source](#configuração-do-source)
+   - [Camada Bronze](#camada-bronze)
+   - [Camada Silver](#camada-silver)
+   - [Camada Gold](#camada-gold)
+7. [Execução do Projeto DBT](#execução-do-projeto-dbt)
+8. [Conclusão](#conclusão)
 
 ---
 
@@ -37,7 +43,7 @@ A análise de dados é essencial para qualquer negócio que deseja entender seu 
 SELECT 
     * 
 FROM 
-    vendas;
+    vendas
 ```
 
 **Descrição:**
@@ -52,7 +58,7 @@ SELECT
 FROM 
     vendas 
 ORDER BY 
-    dia ASC;
+    dia ASC
 ```
 
 **Descrição:**
@@ -70,7 +76,7 @@ FROM
 GROUP BY
     data
 ORDER BY 
-    dia ASC;
+    dia ASC
 ```
 
 **Descrição:**
@@ -83,7 +89,7 @@ ORDER BY
 SELECT 
     DISTINCT valor 
 FROM 
-    vendas;
+    vendas
 ```
 
 **Descrição:**
@@ -99,7 +105,7 @@ SELECT
 FROM 
     vendas 
 GROUP BY 
-    valor;
+    valor
 ```
 
 **Descrição:**
@@ -121,7 +127,7 @@ WHERE
 GROUP BY 
     DATE(data) 
 ORDER BY 
-    dia DESC;
+    dia DESC
 ```
 
 **Descrição:**
@@ -145,7 +151,7 @@ WHERE
     AND data <= '2024-09-11'
 ORDER BY 
     data ASC, 
-    valor DESC;
+    valor DESC
 ```
 
 **Descrição:**
@@ -181,12 +187,190 @@ GROUP BY
     dia, 
     produto
 ORDER BY 
-    dia ASC;
+    dia ASC
 ```
 
 **Descrição:**
 - Utiliza uma CTE (`vendas_filtradas`) para filtrar vendas específicas e, em seguida, agrega os resultados por dia e produto.
 - **Importância:** Permite visualizar o desempenho de cada produto por dia, ajudando a identificar os dias mais fortes de vendas para cada produto, além de ajudar na detecção de tendências e sazonalidades.
+
+### **Análises Importantes**
+
+Essas análises ajudam a visualizar e interpretar os dados de vendas, identificando padrões, comportamentos fora do comum e possibilitando decisões mais assertivas no dia a dia do negócio.
+
+### **Instalação e Configuração do DBT**
+
+#### **1. Instalar o DBT**
+
+Instale o DBT com suporte ao PostgreSQL utilizando o comando:
+
+```bash
+pip install dbt-postgres
+```
+
+#### **2. Criar o Projeto DBT**
+
+Após instalar o DBT, crie um novo projeto:
+
+```bash
+dbt init vendas_dbt
+cd vendas_dbt
+```
+
+#### **3. Configuração da Conexão com o PostgreSQL**
+
+Configure o arquivo `profiles.yml` para conectar o DBT ao PostgreSQL. Geralmente localizado em `~/.dbt/` ou na pasta do projeto.
+
+**Exemplo de `profiles.yml`:**
+
+```yaml
+vendas_dbt:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: localhost
+      user: seu_usuario
+      password: sua_senha
+      port: 5432
+      dbname: seu_banco_de_dados
+      schema: vendas
+      threads: 4
+```
+
+### **Estrutura do Projeto**
+
+#### **Configuração do Source**
+
+Crie o arquivo `sources.yml` na pasta `models` para definir o ponto de entrada dos dados:
+
+**Arquivo `models/sources.yml`:**
+
+```yaml
+version: 2
+
+sources:
+  - name: vendas_source
+    schema: vendas
+    tables:
+      - name: vendas
+```
+
+#### **Camada Bronze**
+
+**Arquivo `models/bronze/bronze_vendas.sql`:**
+
+```sql
+{{ config(materialized='view') }}
+
+SELECT 
+    * 
+FROM 
+    {{ source('vendas_source', 'vendas') }}
+```
+
+#### **Camada Silver**
+
+**Arquivo `models/silver/silver_vendas.sql`:**
+
+```sql
+{{ config(materialized='view') }}
+
+WITH cleaned_data AS (
+    SELECT 
+        email, 
+        DATE(data) AS data,
+        valor, 
+        quantidade, 
+        produto
+    FROM 
+        {{ ref('bronze_vendas
+
+') }}
+    WHERE 
+        valor > 0 
+        AND valor < 8000
+        AND data <= CURRENT_DATE
+)
+
+SELECT * FROM cleaned_data
+```
+
+#### **Camada Gold - Agregados dos Últimos 7 Dias**
+
+**Arquivo `models/gold/gold_vendas_7_dias.sql`:**
+
+```sql
+{{ config(materialized='view') }}
+
+WITH vendas_7_dias AS (
+    SELECT 
+        data, 
+        produto, 
+        SUM(valor) AS total_valor, 
+        SUM(quantidade) AS total_quantidade, 
+        COUNT(*) AS total_vendas
+    FROM 
+        {{ ref('silver_vendas') }}
+    WHERE 
+        data >= CURRENT_DATE - INTERVAL '6 days'
+    GROUP BY 
+        data, produto
+)
+
+SELECT 
+    data, 
+    produto, 
+    total_valor, 
+    total_quantidade, 
+    total_vendas
+FROM 
+    vendas_7_dias
+ORDER BY 
+    data ASC
+```
+
+#### **Camada Gold - Agregados por Vendedor**
+
+**Arquivo `models/gold/gold_vendas_por_vendedor.sql`:**
+
+```sql
+{{ config(materialized='view') }}
+
+WITH vendas_7_dias_vendedor AS (
+    SELECT 
+        email AS vendedor, 
+        DATE(data) AS data, 
+        SUM(valor) AS total_valor, 
+        SUM(quantidade) AS total_quantidade, 
+        COUNT(*) AS total_vendas
+    FROM 
+        {{ ref('silver_vendas') }}
+    WHERE 
+        data >= CURRENT_DATE - INTERVAL '6 days'
+    GROUP BY 
+        email, DATE(data)
+)
+
+SELECT 
+    vendedor, 
+    data, 
+    total_valor, 
+    total_quantidade, 
+    total_vendas
+FROM 
+    vendas_7_dias_vendedor
+ORDER BY 
+    data ASC, vendedor ASC
+```
+
+### **Execução do Projeto DBT**
+
+Após configurar todas as camadas, execute o DBT para materializar as views:
+
+```bash
+dbt run
+```
 
 ### **Conclusão**
 
