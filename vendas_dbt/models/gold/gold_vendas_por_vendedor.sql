@@ -1,9 +1,9 @@
 {{ config(materialized='view') }}
 
-WITH vendas_7_dias AS (
+WITH vendas_7_dias_vendedor AS (
     SELECT 
-        data, 
-        produto, 
+        email AS vendedor, 
+        DATE(data) AS data, 
         SUM(valor) AS total_valor, 
         SUM(quantidade) AS total_quantidade, 
         COUNT(*) AS total_vendas
@@ -12,16 +12,16 @@ WITH vendas_7_dias AS (
     WHERE 
         data >= CURRENT_DATE - INTERVAL '6 days'
     GROUP BY 
-        data, produto
+        email, DATE(data)
 )
 
 SELECT 
+    vendedor, 
     data, 
-    produto, 
     total_valor, 
     total_quantidade, 
     total_vendas
 FROM 
-    vendas_7_dias
+    vendas_7_dias_vendedor
 ORDER BY 
-    data ASC
+    data ASC, vendedor ASC
